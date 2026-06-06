@@ -1,4 +1,4 @@
-# The Hive - Case Management Dashboard
+# Case Management System
 
 A professional case management application scaffold with frontend, backend, and PostgreSQL schema ready for use.
 
