@@ -1,20 +1,27 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const links = [
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/cases', label: 'Cases' },
-  { to: '/departments', label: 'Department Management' },
-  { to: '/employees', label: 'Employee Management' }
+  { to: '/dashboard', icon: '📊', label: 'Dashboard' },
+  { to: '/cases', icon: '🧾', label: 'Cases' },
+  { to: '/departments', icon: '🏢', label: 'Departments' },
+  { to: '/employees', icon: '👥', label: 'Employees' }
 ];
 
 export default function Sidebar() {
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
+
+  const handleSignOut = () => {
+    logout();
+    navigate('/');
+  };
+
   return (
     <aside className="sidebar">
       <div>
         <span className="sidebar-brand">Case Management</span>
-        <p className="text-muted">Welcome, {user?.name || 'Analyst'}</p>
+        <p className="sidebar-welcome">Welcome, {user?.name || 'Analyst'}</p>
       </div>
 
       <nav className="sidebar-nav">
@@ -24,13 +31,14 @@ export default function Sidebar() {
             to={link.to}
             className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
           >
+            <span className="nav-icon" aria-hidden="true">{link.icon}</span>
             {link.label}
           </NavLink>
         ))}
       </nav>
 
-      <div>
-        <button className="ghost" onClick={logout} type="button">
+      <div className="sidebar-footer">
+        <button className="ghost danger" onClick={handleSignOut} type="button">
           Sign out
         </button>
       </div>

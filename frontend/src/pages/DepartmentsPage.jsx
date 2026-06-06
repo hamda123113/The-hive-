@@ -102,6 +102,11 @@ export default function DepartmentsPage() {
     }
   };
 
+  const [selectedDepartment, setSelectedDepartment] = useState(null);
+  const [modalMode, setModalMode] = useState(null);
+  const [editDepartment, setEditDepartment] = useState(null);
+  const [savingDeptEdit, setSavingDeptEdit] = useState(false);
+
   const handleDeleteRole = async (roleId, deptId) => {
     if (confirm('Delete this role?')) {
       try {
@@ -114,6 +119,46 @@ export default function DepartmentsPage() {
         console.error('Failed to delete role:', error);
         alert('Unable to delete role.');
       }
+    }
+  };
+
+  const closeModal = () => {
+    setSelectedDepartment(null);
+    setEditDepartment(null);
+    setModalMode(null);
+  };
+
+  const handleViewDept = (dept) => {
+    setSelectedDepartment(dept);
+    setModalMode('view');
+  };
+
+  const handleEditDept = (dept) => {
+    setEditDepartment({ ...dept });
+    setModalMode('edit');
+  };
+
+  const handleDeptChange = (field, value) => {
+    setEditDepartment((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveDept = async (event) => {
+    event.preventDefault();
+    if (!editDepartment) return;
+    setSavingDeptEdit(true);
+    try {
+      const resp = await api.put(`/departments/${editDepartment.id}`, {
+        dept_name: editDepartment.dept_name,
+        description: editDepartment.description,
+        dept_head: editDepartment.dept_head
+      });
+      setDepartments((prev) => prev.map((item) => (item.id === resp.data.id ? resp.data : item)));
+      closeModal();
+    } catch (error) {
+      console.error('Failed to save department changes:', error);
+      alert('Unable to save department changes.');
+    } finally {
+      setSavingDeptEdit(false);
     }
   };
 
@@ -145,17 +190,18 @@ export default function DepartmentsPage() {
                 <td>{dept.dept_head || 'TBD'}</td>
                 <td>
                   <button
-                    className="ghost"
-                    style={{ padding: '6px 10px', fontSize: '0.85rem' }}
+                    className="role-chip"
                     type="button"
                     onClick={() => setExpandedDeptId(expandedDeptId === dept.id ? null : dept.id)}
                   >
-                    {expandedDeptId === dept.id ? 'Hide' : 'Show'} ({(deptRoles[dept.id] || []).length})
+                    {expandedDeptId === dept.id ? 'Hide' : 'Show'}
+                    <span className="role-count">{(deptRoles[dept.id] || []).length}</span>
                   </button>
                 </td>
                 <td style={{ display: 'flex', gap: '8px' }}>
-                  <button className="ghost" style={{ padding: '6px 10px', fontSize: '0.85rem' }} type="button">Edit</button>
-                  <button className="ghost" style={{ padding: '6px 10px', fontSize: '0.85rem', color: '#ef4444' }} onClick={() => handleDeleteDept(dept.id)} type="button">Delete</button>
+                  <button className="ghost icon-button" onClick={() => handleViewDept(dept)} type="button" aria-label="View department">👁️</button>
+                  <button className="ghost icon-button" onClick={() => handleEditDept(dept)} type="button" aria-label="Edit department">✏️</button>
+                  <button className="ghost icon-button" style={{ color: '#ef4444' }} onClick={() => handleDeleteDept(dept.id)} type="button" aria-label="Delete department">🗑️</button>
                 </td>
               </tr>
             ))}
@@ -231,6 +277,57 @@ export default function DepartmentsPage() {
           <button className="primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Add department'}</button>
         </form>
       </div>
+
+      {(modalMode === 'view' || modalMode === 'edit') && (selectedDepartment || editDepartment) && (
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3>{modalMode === 'view' ? 'Department details' : 'Edit department'}</h3>
+              <button className="ghost icon-button" type="button" onClick={closeModal} aria-label="Close modal">×</button>
+            </div>
+
+            {modalMode === 'view' ? (
+              <div style={{ display: 'grid', gap: '12px' }}>
+                <div className="detail-row">
+                  <div className="detail-label">Name</div>
+                  <div className="detail-value">{selectedDepartment.dept_name}</div>
+                </div>
+                <div className="detail-row">
+                  <div className="detail-label">Description</div>
+                  <div className="detail-value">{selectedDepartment.description || 'No description provided.'}</div>
+                </div>
+                <div className="detail-row">
+                  <div className="detail-label">Department head</div>
+                  <div className="detail-value">{selectedDepartment.dept_head || 'Not assigned'}</div>
+                </div>
+                <div className="detail-row">
+                  <div className="detail-label">Roles</div>
+                  <div className="detail-value">{(deptRoles[selectedDepartment.id] || []).length || 'None'}</div>
+                </div>
+              </div>
+            ) : (
+              <form className="grid-gap" onSubmit={handleSaveDept}>
+                <label>
+                  Department name
+                  <input value={editDepartment.dept_name} onChange={(e) => handleDeptChange('dept_name', e.target.value)} type="text" />
+                </label>
+                <label>
+                  Description
+                  <textarea value={editDepartment.description} onChange={(e) => handleDeptChange('description', e.target.value)} rows="4" />
+                </label>
+                <label>
+                  Department head
+                  <input value={editDepartment.dept_head} onChange={(e) => handleDeptChange('dept_head', e.target.value)} type="text" />
+                </label>
+                <div className="button-row">
+                  <button className="primary" type="submit" disabled={savingDeptEdit}>{savingDeptEdit ? 'Saving…' : 'Save changes'}</button>
+                  <button className="ghost cancel" type="button" onClick={closeModal}>Cancel</button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
