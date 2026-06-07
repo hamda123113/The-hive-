@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
@@ -7,8 +9,6 @@ const employeeRoutes = require('./routes/employeeRoutes');
 const roleRoutes = require('./routes/roleRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const { pool, initializeSchema } = require('./db');
-
-require('dotenv').config();
 
 const app = express();
 app.use(cors({ origin: true }));

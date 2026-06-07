@@ -1,5 +1,6 @@
 const { pool } = require('../db');
 const { createCaseId } = require('../utils/generateCaseId');
+const { sendMail, buildCaseAssignmentEmail } = require('../utils/mailer');
 
 async function getCases(req, res) {
   try {
@@ -78,7 +79,39 @@ async function createCase(req, res) {
       [caseReference, title, description || '', recommendation || '', department_id, employee_id, req.user.id]
     );
 
-    return res.status(201).json(result.rows[0]);
+    const createdCase = result.rows[0];
+    const employeeResult = await pool.query(
+      `SELECT e.employee_name, e.email, d.dept_name
+       FROM employees e
+       LEFT JOIN departments d ON e.department_id = d.id
+       WHERE e.id = $1`,
+      [employee_id]
+    );
+
+    if (employeeResult.rows.length) {
+      const assignee = employeeResult.rows[0];
+      const { text, html } = buildCaseAssignmentEmail({
+        assigneeName: assignee.employee_name,
+        caseReference,
+        title,
+        department: assignee.dept_name,
+        description,
+        recommendation,
+      });
+
+      try {
+        await sendMail({
+          to: assignee.email,
+          subject: `New case assigned: ${caseReference}`,
+          text,
+          html,
+        });
+      } catch (mailError) {
+        console.error('Failed to send assignment email:', mailError);
+      }
+    }
+
+    return res.status(201).json(createdCase);
   } catch (error) {
     console.error('Create case error:', error);
     return res.status(500).json({ message: 'Unable to create case.' });
