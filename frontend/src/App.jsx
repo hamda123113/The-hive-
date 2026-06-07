@@ -8,7 +8,9 @@ import DashboardPage from './pages/DashboardPage.jsx';
 import CasesPage from './pages/CasesPage.jsx';
 import CaseCreatePage from './pages/CaseCreatePage.jsx';
 import DepartmentsPage from './pages/DepartmentsPage.jsx';
+import DepartmentCreatePage from './pages/DepartmentCreatePage.jsx';
 import EmployeesPage from './pages/EmployeesPage.jsx';
+import EmployeeCreatePage from './pages/EmployeeCreatePage.jsx';
 
 function App() {
   return (
@@ -23,7 +25,9 @@ function App() {
             <Route path="/cases" element={<CasesPage />} />
             <Route path="/cases/new" element={<CaseCreatePage />} />
             <Route path="/departments" element={<DepartmentsPage />} />
+            <Route path="/departments/new" element={<DepartmentCreatePage />} />
             <Route path="/employees" element={<EmployeesPage />} />
+            <Route path="/employees/new" element={<EmployeeCreatePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
