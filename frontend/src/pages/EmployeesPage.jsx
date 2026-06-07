@@ -1,26 +1,27 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api.js';
+import Pagination from '../components/Pagination.jsx';
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [roles, setRoles] = useState([]);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [departmentId, setDepartmentId] = useState('');
-  const [roleId, setRoleId] = useState('');
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [modalMode, setModalMode] = useState(null);
+  const [editEmployee, setEditEmployee] = useState(null);
+  const [editRoles, setEditRoles] = useState([]);
+  const [savingEmployeeEdit, setSavingEmployeeEdit] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [empResp, deptResp] = await Promise.all([
-          api.get('/employees'),
-          api.get('/departments')
-        ]);
+        const [empResp, deptResp, roleResp] = await Promise.all([api.get('/employees'), api.get('/departments'), api.get('/roles')]);
         setEmployees(empResp.data);
         setDepartments(deptResp.data);
+        setRoles(roleResp.data);
       } catch (err) {
         console.error('Failed to load employees data', err);
       }
@@ -30,72 +31,10 @@ export default function EmployeesPage() {
   }, []);
 
   useEffect(() => {
-    async function loadRolesForDept() {
-      if (!departmentId) {
-        setRoles([]);
-        return;
-      }
-      try {
-        const resp = await api.get(`/roles?department_id=${departmentId}`);
-        setRoles(resp.data);
-      } catch (err) {
-        console.error('Failed to load roles for department', err);
-      }
-    }
+    setCurrentPage(1);
+  }, [employees.length]);
 
-    loadRolesForDept();
-  }, [departmentId]);
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setError('');
-
-    if (!name || !email || !departmentId || !roleId) {
-      setError('All fields are required to add a new employee.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const response = await api.post('/employees', {
-        employee_name: name,
-        email,
-        department_id: Number(departmentId),
-        role_id: Number(roleId)
-      });
-      setEmployees((prev) => [...prev, {
-        ...response.data,
-        department_name: departments.find((dept) => dept.id === Number(departmentId))?.dept_name,
-        role_title: roles.find((role) => role.id === Number(roleId))?.role_title
-      }]);
-      setName('');
-      setEmail('');
-      setDepartmentId('');
-      setRoleId('');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Unable to add employee.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [modalMode, setModalMode] = useState(null);
-  const [editEmployee, setEditEmployee] = useState(null);
-  const [editRoles, setEditRoles] = useState([]);
-  const [savingEmployeeEdit, setSavingEmployeeEdit] = useState(false);
-
-  const handleDelete = async (id) => {
-    if (confirm('Are you sure you want to delete this employee?')) {
-      try {
-        await api.delete(`/employees/${id}`);
-        setEmployees(employees.filter(e => e.id !== id));
-      } catch (error) {
-        console.error('Failed to delete employee:', error);
-        alert('Unable to delete employee.');
-      }
-    }
-  };
+  const departmentById = departments.reduce((map, dept) => ({ ...map, [dept.id]: dept }), {});
 
   const closeModal = () => {
     setSelectedEmployee(null);
@@ -144,6 +83,7 @@ export default function EmployeesPage() {
       }
       return updated;
     });
+
     if (field === 'department_id') {
       handleEditRoleLoad(Number(value));
     }
@@ -153,24 +93,23 @@ export default function EmployeesPage() {
     event.preventDefault();
     if (!editEmployee) return;
     setSavingEmployeeEdit(true);
+
     try {
       const resp = await api.put(`/employees/${editEmployee.id}`, {
         employee_name: editEmployee.employee_name,
         email: editEmployee.email,
         department_id: Number(editEmployee.department_id),
-        role_id: Number(editEmployee.role_id)
+        role_id: Number(editEmployee.role_id),
       });
-      setEmployees((prev) => prev.map((item) => item.id === resp.data.id
-        ? {
-          ...item,
-          employee_name: resp.data.employee_name,
-          email: resp.data.email,
-          department_id: resp.data.department_id,
-          department_name: departments.find((d) => d.id === resp.data.department_id)?.dept_name || item.department_name,
-          role_id: resp.data.role_id,
-          role_title: editRoles.find((role) => role.id === resp.data.role_id)?.role_title || item.role_title
-        }
-        : item));
+      setEmployees((prev) => prev.map((item) => (item.id === resp.data.id ? {
+        ...item,
+        employee_name: resp.data.employee_name,
+        email: resp.data.email,
+        department_id: resp.data.department_id,
+        department_name: departmentById[resp.data.department_id]?.dept_name || item.department_name,
+        role_id: resp.data.role_id,
+        role_title: editRoles.find((role) => role.id === resp.data.role_id)?.role_title || item.role_title,
+      } : item)));
       closeModal();
     } catch (error) {
       console.error('Failed to save employee changes:', error);
@@ -180,16 +119,35 @@ export default function EmployeesPage() {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (confirm('Are you sure you want to delete this employee?')) {
+      try {
+        await api.delete(`/employees/${id}`);
+        setEmployees((prev) => prev.filter((e) => e.id !== id));
+      } catch (error) {
+        console.error('Failed to delete employee:', error);
+        alert('Unable to delete employee.');
+      }
+    }
+  };
+
+  const sortedEmployees = [...employees].sort((a, b) => a.employee_name.localeCompare(b.employee_name));
+  const totalPages = Math.max(1, Math.ceil(sortedEmployees.length / pageSize));
+  const currentItems = sortedEmployees.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
     <div className="page-shell">
       <div className="page-header">
         <div>
           <h1 className="heading-md">Employee management</h1>
-          <p className="text-muted">Add and review employees assigned to departments and roles.</p>
+          <p className="text-muted">View employees and navigate to the employee onboarding form.</p>
         </div>
+        <Link to="/employees/new">
+          <button className="primary" type="button">Create employee</button>
+        </Link>
       </div>
 
-      <div className="panel table-wrapper" style={{ marginBottom: '24px' }}>
+      <div className="panel table-wrapper">
         <table>
           <thead>
             <tr>
@@ -201,7 +159,7 @@ export default function EmployeesPage() {
             </tr>
           </thead>
           <tbody>
-            {employees.map((employee) => (
+            {currentItems.map((employee) => (
               <tr key={employee.id}>
                 <td>{employee.employee_name}</td>
                 <td>{employee.email}</td>
@@ -214,47 +172,15 @@ export default function EmployeesPage() {
                 </td>
               </tr>
             ))}
-            {!employees.length && (
+            {!currentItems.length && (
               <tr>
                 <td colSpan="5" style={{ color: '#94a3b8', padding: '24px' }}>No employees registered yet.</td>
               </tr>
             )}
           </tbody>
         </table>
-      </div>
 
-      <div className="panel" style={{ maxWidth: '100%' }}>
-        <h2 className="heading-sm">Add new employee</h2>
-        <form className="grid-gap" onSubmit={handleSubmit} style={{ marginTop: '20px' }}>
-          <label>
-            Employee name
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Alex Johnson" type="text" />
-          </label>
-          <label>
-            Email address
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="alex@example.com" type="email" />
-          </label>
-          <label>
-            Department
-            <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
-              <option value="">Select department</option>
-              {departments.map((dept) => (
-                <option key={dept.id} value={dept.id}>{dept.dept_name}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Role
-            <select value={roleId} onChange={(e) => setRoleId(e.target.value)}>
-              <option value="">Select role</option>
-              {roles.map((role) => (
-                <option key={role.id} value={role.id}>{role.role_title}</option>
-              ))}
-            </select>
-          </label>
-          {error && <div style={{ color: '#f87171' }}>{error}</div>}
-          <button className="primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Add employee'}</button>
-        </form>
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
       </div>
 
       {(modalMode === 'view' || modalMode === 'edit') && (selectedEmployee || editEmployee) && (

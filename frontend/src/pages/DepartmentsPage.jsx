@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api.js';
 
 export default function DepartmentsPage() {
@@ -169,6 +170,9 @@ export default function DepartmentsPage() {
           <h1 className="heading-md">Department management</h1>
           <p className="text-muted">Manage departments and their associated roles.</p>
         </div>
+        <Link to="/departments/new">
+          <button className="primary" type="button">Create department</button>
+        </Link>
       </div>
 
       <div className="panel table-wrapper" style={{ marginBottom: '24px' }}>
@@ -256,26 +260,6 @@ export default function DepartmentsPage() {
             )}
           </div>
         )}
-      </div>
-
-      <div className="panel" style={{ maxWidth: '100%' }}>
-        <h2 className="heading-sm">Add new department</h2>
-        <form className="grid-gap" onSubmit={handleSubmit} style={{ marginTop: '20px' }}>
-          <label>
-            Department name
-            <input value={name} onChange={(e) => setName(e.target.value)} type="text" placeholder="Security Operations" />
-          </label>
-          <label>
-            Description
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows="4" placeholder="Describe the team responsibilities" />
-          </label>
-          <label>
-            Department head
-            <input value={head} onChange={(e) => setHead(e.target.value)} type="text" placeholder="Team lead name" />
-          </label>
-          {error && <div style={{ color: '#f87171' }}>{error}</div>}
-          <button className="primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Add department'}</button>
-        </form>
       </div>
 
       {(modalMode === 'view' || modalMode === 'edit') && (selectedDepartment || editDepartment) && (
